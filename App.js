@@ -6,7 +6,11 @@ export default function App() {
     <View style={styles.container}>
       
       <Profile
-        nama="Muhammad Fadhlan"
+        nama="Fadhil Hazza Iswadinata"
+        nim="4112755201250124"
+        gender="Laki-laki"
+        alamat="Ckm, Majalaya, Karawang"
+        umur="19 Tahun"
         jurusan="Teknik Informatika"
         deskripsi="Saya adalah seorang mahasiswa yang sedang menempuh pendidikan di bidang Teknik Informatika. Saya memiliki minat yang besar dalam pengembangan perangkat lunak dan teknologi terbaru."
         skills="JavaScript, React Native, Python, HTML, CSS"
@@ -16,7 +20,7 @@ export default function App() {
   );
 }
     
-function Profile({ nama, jurusan, deskripsi, skills }) {
+function Profile({ nama, nim, gender, alamat, umur, jurusan, deskripsi, skills }) {
   return (
     <View>
       <Image
@@ -25,6 +29,10 @@ function Profile({ nama, jurusan, deskripsi, skills }) {
       />
       <Text style={styles.Text}>Profile</Text>
       <Text style={styles.Text}>{nama}</Text>
+      <Text style={styles.Text}>{nim}</Text>
+      <Text style={styles.Text}>{gender}</Text>
+      <Text style={styles.Text}>{alamat}</Text>
+      <Text style={styles.Text}>{umur}</Text>
       <Text style={styles.Text}>{jurusan}</Text>
       <Text style={styles.Text}>{deskripsi}</Text>
       <Text style={styles.Text}>{skills}</Text>
