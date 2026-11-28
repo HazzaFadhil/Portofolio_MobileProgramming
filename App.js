@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import {
   StyleSheet,
@@ -7,7 +7,10 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-} from 'react-native';
+  Animated,
+}
+
+  from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RegisterScreen from './src/screens/RegisterScreen';
 
@@ -15,9 +18,32 @@ export default function App() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
 
+  // Animasi timing + parallel (opacity + translateY) saat halaman utama muncul
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardTranslateY = useRef(new Animated.Value(30)).current;
+
   const skills = ['JavaScript', 'React Native', 'C++', 'HTML & CSS'];
 
-  // Jika belum register, tampilkan halaman RegisterScreen terlebih dahulu
+  useEffect(() => {
+    if (isRegistered) {
+      cardOpacity.setValue(0);
+      cardTranslateY.setValue(30);
+
+      Animated.parallel([
+        Animated.timing(cardOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardTranslateY, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isRegistered, cardOpacity, cardTranslateY]);
+
   if (!isRegistered) {
     return (
       <RegisterScreen
@@ -29,7 +55,6 @@ export default function App() {
     );
   }
 
-  // Setelah register berhasil, tampilkan halaman utama (profil)
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -37,7 +62,15 @@ export default function App() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: cardOpacity,
+              transform: [{ translateY: cardTranslateY }],
+            },
+          ]}
+        >
           <Image
             source={require('./assets/image.png')}
             style={styles.image}
@@ -78,7 +111,7 @@ export default function App() {
           >
             <Text style={styles.backButtonText}>Kembali ke Register</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,26 +11,59 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-export default function RegisterScreen() {
-  // State lokal untuk 3 input utama
+export default function RegisterScreen({ onRegisterSuccess }) {
   const [nama, setNama] = useState('');
   const [noHp, setNoHp] = useState('');
   const [password, setPassword] = useState('');
 
-  // State pendukung Form UX
   const [securePassword, setSecurePassword] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [lastRegistered, setLastRegistered] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Animasi loop + interpolate (rotate) saat memproses registrasi
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  useEffect(() => {
+    return () => {
+      loopRef.current?.stop();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const startSpinner = () => {
+    rotateAnim.setValue(0);
+    loopRef.current = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      })
+    );
+    loopRef.current.start();
+  };
+
+  const stopSpinner = () => {
+    loopRef.current?.stop();
+  };
 
   const handleRegister = () => {
-    // Bersihkan pesan error sebelumnya
+    if (isSubmitting) return;
     setErrorMessage('');
 
-    // Validasi sederhana (Form UX)
     if (!nama.trim() || !noHp.trim() || !password.trim()) {
       setErrorMessage('Semua kolom (Nama, Nomor HP, dan Password) wajib diisi.');
       return;
@@ -46,33 +79,38 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Menutup keyboard saat submit
     Keyboard.dismiss();
+    setIsSubmitting(true);
+    startSpinner();
 
     const userData = {
       nama: nama.trim(),
       noHp: noHp.trim(),
-      password: password,
+      password,
     };
 
-    setLastRegistered(userData);
+    timeoutRef.current = setTimeout(() => {
+      stopSpinner();
+      setIsSubmitting(false);
 
-    // Menampilkan notifikasi Alert berisi status berhasil & data input
-    Alert.alert(
-      'Register Berhasil ✅',
-      `Nama: ${userData.nama}\nNomor HP: ${userData.noHp}\nPassword: ${userData.password}`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form setelah user menekan OK
-            setNama('');
-            setNoHp('');
-            setPassword('');
+      Alert.alert(
+        'Register Berhasil ✅',
+        `Nama: ${userData.nama}\nNomor HP: ${userData.noHp}\nPassword: ${userData.password}`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setNama('');
+              setNoHp('');
+              setPassword('');
+              if (onRegisterSuccess) {
+                onRegisterSuccess(userData);
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }, 1000);
   };
 
   return (
@@ -93,14 +131,12 @@ export default function RegisterScreen() {
                 Lengkapi data di bawah ini untuk mendaftar.
               </Text>
 
-              {/* Feedback Error Inline (Form UX) */}
               {errorMessage ? (
                 <View style={styles.errorBox}>
                   <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
                 </View>
               ) : null}
 
-              {/* Input 1: Nama */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nama Lengkap</Text>
                 <TextInput
@@ -108,6 +144,7 @@ export default function RegisterScreen() {
                   placeholder="Masukkan nama lengkap"
                   placeholderTextColor="#9ca3af"
                   value={nama}
+                  editable={!isSubmitting}
                   onChangeText={(text) => {
                     setNama(text);
                     if (errorMessage) setErrorMessage('');
@@ -117,7 +154,6 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              {/* Input 2: Nomor HP */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Nomor HP</Text>
                 <TextInput
@@ -125,8 +161,8 @@ export default function RegisterScreen() {
                   placeholder="Contoh: 081234567890"
                   placeholderTextColor="#9ca3af"
                   value={noHp}
+                  editable={!isSubmitting}
                   onChangeText={(text) => {
-                    // Hanya izinkan angka
                     const numericOnly = text.replace(/[^0-9]/g, '');
                     setNoHp(numericOnly);
                     if (errorMessage) setErrorMessage('');
@@ -136,7 +172,6 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              {/* Input 3: Password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Password</Text>
                 <View style={styles.passwordWrapper}>
@@ -145,6 +180,7 @@ export default function RegisterScreen() {
                     placeholder="Minimal 6 karakter"
                     placeholderTextColor="#9ca3af"
                     value={password}
+                    editable={!isSubmitting}
                     onChangeText={(text) => {
                       setPassword(text);
                       if (errorMessage) setErrorMessage('');
@@ -156,6 +192,7 @@ export default function RegisterScreen() {
                   />
                   <TouchableOpacity
                     style={styles.toggleBtn}
+                    disabled={isSubmitting}
                     onPress={() => setSecurePassword((prev) => !prev)}
                   >
                     <Text style={styles.toggleText}>
@@ -165,24 +202,23 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Tombol Register */}
               <TouchableOpacity
-                style={styles.submitButton}
+                style={[styles.submitButton, isSubmitting && styles.disabledButton]}
                 onPress={handleRegister}
+                disabled={isSubmitting}
                 activeOpacity={0.8}
               >
-                <Text style={styles.submitButtonText}>Register</Text>
+                {isSubmitting ? (
+                  <View style={styles.loadingRow}>
+                    <Animated.View
+                      style={[styles.miniSpinner, { transform: [{ rotate }] }]}
+                    />
+                    <Text style={styles.submitButtonText}>Memproses...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.submitButtonText}>Register</Text>
+                )}
               </TouchableOpacity>
-
-              {/* Ringkasan data terakhir yang berhasil didaftarkan di layar */}
-              {lastRegistered && (
-                <View style={styles.resultBox}>
-                  <Text style={styles.resultTitle}>Data Terdaftar Terakhir:</Text>
-                  <Text style={styles.resultItem}>Nama: {lastRegistered.nama}</Text>
-                  <Text style={styles.resultItem}>No. HP: {lastRegistered.noHp}</Text>
-                  <Text style={styles.resultItem}>Password: {lastRegistered.password}</Text>
-                </View>
-              )}
             </View>
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -288,28 +324,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+  disabledButton: {
+    opacity: 0.8,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  miniSpinner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    borderTopColor: '#ffffff',
+  },
   submitButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  resultBox: {
-    marginTop: 20,
-    padding: 14,
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  resultTitle: {
-    fontWeight: 'bold',
-    color: '#1e40af',
-    marginBottom: 6,
-    fontSize: 14,
-  },
-  resultItem: {
-    color: '#1f2937',
-    fontSize: 13,
-    marginBottom: 2,
   },
 });
